@@ -1,0 +1,25 @@
+{
+    "video_metadata": {
+        "video_id": "string",
+        "fps": float,
+        "total_frames": int
+    },
+    "shot_info": {
+        "shot_id": int,
+        "frame_range": [int, int], # [start_frame, end_frame]
+        "timestamp": [float, float] # [start_sec, end_sec]
+    },
+    "perception": {
+        "visual_caption": "string",  # Output từ Florence-2
+        "audio_transcript": []       # Lọc từ Whisper: [{"text": str, "start": f, "end": f}]
+    },
+    "agent_reasoning": {
+        "aligned_context": "string", # L1: Kết hợp Image + Audio
+        "local_score": float,        # L2: Điểm số 0-1
+        "keywords": [],              # Nén ngữ nghĩa
+        "reasoning": "string"        # Giải thích
+    },
+    "embeddings": {
+        "vector": []                 # Vector 5120 hoặc 4096 để nạp vào Model Paper
+    }
+}
