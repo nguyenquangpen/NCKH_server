@@ -3,7 +3,7 @@ import uvicorn
 import base64
 import json
 from utils.helpers import *
-from preception.visual import VisualPerceptionTool
+from perception.visual import VisualPerceptionTool
 
 app = FastAPI()
 

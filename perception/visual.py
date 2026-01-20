@@ -11,7 +11,8 @@ class VisualPerception:
         self.model = AutoModelForCausalLM.from_pretrained(
             self.model_id, 
             trust_remote_code=True,
-            torch_dtype=torch.float16 if self.device == "cuda" else torch.float32
+            torch_dtype=torch.float16 if self.device == "cuda" else torch.float32,
+            attn_implementation="eager"
         ).to(self.device).eval()
         
         self.processor = AutoProcessor.from_pretrained(self.model_id, trust_remote_code=True)
@@ -28,9 +29,11 @@ class VisualPerception:
             generated_ids = self.model.generate(
                 input_ids=inputs["input_ids"],
                 pixel_values=inputs["pixel_values"],
-                max_new_tokens=512,
-                num_beams=3
+                max_new_tokens=4096,
+                num_beams=1,
+                do_sample=False
             )
         
         generated_text = self.processor.batch_decode(generated_ids, skip_special_tokens=True)[0]
+
         return generated_text
