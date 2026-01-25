@@ -3,6 +3,7 @@ from PIL import Image
 import io
 import base64
 import numpy as np
+from io import BytesIO
 from .model import FlorenceInput, FlorenceOutput
 from transformers import AutoProcessor, AutoModelForCausalLM
 from utils.memory import clear_vram
@@ -40,11 +41,16 @@ class FlorenceView:
         clear_vram()
 
     def _decode_image(self, image_b64: str) -> Image.Image:
-        image_data = base64.b64decode(image_b64)
-        image = Image.open(io.BytesIO(image_data)).convert('RGB')
-        return image
+        try:
+            if "," in image_b64:
+                image_b64 = image_b64.split(",")[1]
+            img_data = base64.b64decode(image_b64)
+            return Image.open(BytesIO(img_data)).convert("RGB")
+        except Exception as e:
+            print(f"Error decoding base64: {e}")
+            return None
 
-    def process_shots(self, data: FlorenceInput) -> list[FlorenceOutput]:
+    def generate_caption(self, data: FlorenceInput):
         """
         handle inference for a list of FlorenceInput and return a list of FlorenceOutput
         """
@@ -52,9 +58,11 @@ class FlorenceView:
         results = []
         task_prompt = '<DETAILED_CAPTION>' 
         try:
+            print("Decoding image from base64...")
             image = self._decode_image(data.image_b64)
             inputs = self.processor(text=task_prompt, images=image, return_tensors="pt")
 
+            print("Generating caption with Florence-2...")
             generated_ids = self.model.generate(
                     input_ids=inputs["input_ids"].to(self.device),
                     pixel_values=inputs["pixel_values"].to(self.device, self.torch_dtype),
@@ -63,8 +71,11 @@ class FlorenceView:
                     do_sample=False,
                     num_beams=3,
                 )
+            
+            print("Decoding generated text...")
             generated_text = self.processor.batch_decode(generated_ids, skip_special_tokens=False)[0]
             
+            print("Post-processing generated text...")
             parsed_answer = self.processor.post_process_generation(
                 generated_text,
                 task=task_prompt,
@@ -72,12 +83,6 @@ class FlorenceView:
             )
             caption_text = parsed_answer.get(task_prompt, "")
 
-            results.append(FlorenceOutput(
-                shot_id=data.shot_id,
-                caption=caption_text
-            ))
-            print(f"Processed shot_id: {data.shot_id}")
-
         except Exception as e:
             print(f"Error during Florence inference: {str(e)}")
-        return results
+        return caption_text

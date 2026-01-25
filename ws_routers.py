@@ -5,6 +5,7 @@ import json
 from utils.helpers import *
 from Llama_3.view import LlamaView
 from Florence.view import FlorenceView
+from Florence.model import FlorenceInput, FlorenceOutput
 
 app = FastAPI()
 florence_view = FlorenceView()
@@ -43,17 +44,28 @@ async def video_handler(websocket: WebSocket):
                 data = json.loads(msg)
                 if data.get("Status") == "run":
                     shot_id = data.get("shot_id")
-                    frame_b64 = data.get("frame")
+                    image_b64 = data.get("image_b64")
                     print(f"Processing shot: {shot_id}")
 
-                    image_pil = base64_to_pil(frame_b64)
-                    caption = florence_view.generate_caption(image_pil)
-                    result = {
-                        "shot_id": shot_id,
-                        "visual_description": caption,
-                        "status": "completed"
-                    }
-                    await websocket.send_json(result)
+                    input_obj = FlorenceInput(
+                        shot_id=shot_id,
+                        image_b64=image_b64
+                    )
+
+                    print("Generating caption with Florence-2...")
+                    results = florence_view.generate_caption(input_obj)
+                    print("Caption generated")
+
+                    if results:
+                        response = {
+                            "shot_id": shot_id,
+                            "caption": results,
+                            "status": "completed"
+                        }
+                        await websocket.send_json(response)
+                    else:
+                        await websocket.send_json({"status": "error", "message": "Inference failed"})
+
                 elif data.get("Status") == "run_llama":
                     pass
             except Exception as e:
