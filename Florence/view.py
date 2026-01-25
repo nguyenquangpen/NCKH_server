@@ -25,9 +25,8 @@ class FlorenceView:
             self.model_id,
             torch_dtype=self.torch_dtype,
             trust_remote_code=True,
-            attn_implementation="eager"
+            # attn_implementation="eager"
         ).to(self.device).eval()
-
         self.processor = AutoProcessor.from_pretrained(self.model_id, trust_remote_code=True)
 
     def unload_model(self):
@@ -39,12 +38,14 @@ class FlorenceView:
         self.model = None
         self.processor = None
         clear_vram()
+
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
     
     def _repair_base64(self, b64_string):
         """Repair base64 string by adding missing padding if necessary."""
         if "," in b64_string:
             b64_string = b64_string.split(",")[1]
-        
         missing_padding = len(b64_string) % 4
         if missing_padding:
             b64_string += '=' * (4 - missing_padding)
@@ -73,35 +74,33 @@ class FlorenceView:
             if image is None:
                 print("Error: Unable to decode image.")
                 return "ERROR_DECODING_IMAGE"
-            
-            inputs = self.processor(text=task_prompt, images=image, return_tensors="pt")
 
-            if "pixel_values" not in inputs:
-                print(f"❌ Shot {data.shot_id}: Processor không tạo được tensor!")
-                return "ERROR_PROCCESSING_TENSOR"
-            
-            print("Generating caption with Florence-2...")
-            generated_ids = self.model.generate(
-                    input_ids=inputs["input_ids"].to(self.device),
-                    pixel_values=inputs["pixel_values"].to(self.device, self.torch_dtype),
+            with torch.inference_mode():
+                inputs = self.processor(text=task_prompt, images=image, return_tensors="pt")
+                input_ids = inputs["input_ids"].to(self.device)
+                pixel_values = inputs["pixel_values"].to(self.device, self.torch_dtype)
+                
+                print("Generating caption with Florence-2...")
+                generated_ids = self.model.generate(
+                    input_ids=input_ids,
+                    pixel_values=pixel_values,
                     max_new_tokens=1024,
                     early_stopping=False,
                     do_sample=False,
                     num_beams=3,
                 )
-            
-            print("Decoding generated text...")
-            generated_text = self.processor.batch_decode(generated_ids, skip_special_tokens=False)[0]
-            
-            print("Post-processing generated text...")
-            parsed_answer = self.processor.post_process_generation(
-                generated_text,
-                task=task_prompt,
-                image_size=(image.width, image.height)
-            )
-            caption_text = parsed_answer.get(task_prompt, "")
+        
+                print("Decoding generated text...")
+                generated_text = self.processor.batch_decode(generated_ids, skip_special_tokens=False)[0]
+                
+                print("Post-processing generated text...")
+                parsed_answer = self.processor.post_process_generation(
+                    generated_text,
+                    task=task_prompt,
+                    image_size=(image.width, image.height)
+                )
+                return parsed_answer.get(task_prompt, "")
 
         except Exception as e:
             print(f"Error during Florence inference: {str(e)}")
-            caption_text = f"Error: {str(e)}"
-        return caption_text
+            return f"Error: {str(e)}"
