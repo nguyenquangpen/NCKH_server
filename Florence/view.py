@@ -70,8 +70,16 @@ class FlorenceView:
         try:
             print("Decoding image from base64...")
             image = self._decode_image(data.image_b64)
+            if image is None:
+                print("Error: Unable to decode image.")
+                return "ERROR_DECODING_IMAGE"
+            
             inputs = self.processor(text=task_prompt, images=image, return_tensors="pt")
 
+            if "pixel_values" not in inputs:
+                print(f"❌ Shot {data.shot_id}: Processor không tạo được tensor!")
+                return "ERROR_PROCCESSING_TENSOR"
+            
             print("Generating caption with Florence-2...")
             generated_ids = self.model.generate(
                     input_ids=inputs["input_ids"].to(self.device),

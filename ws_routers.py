@@ -1,3 +1,4 @@
+import os
 from fastapi import FastAPI, WebSocket, APIRouter
 import uvicorn
 import base64
@@ -63,8 +64,14 @@ async def video_handler(websocket: WebSocket):
                         image_b64=image_b64
                     )
 
-                    print("Generating caption with Florence-2...")
-                    caption_result = florence_view.generate_caption(input_obj)
+                    loop = asyncio.get_running_loop()
+                    print(f"🚀 Đang chạy Florence cho Shot {shot_id}...")
+                    caption_result = await loop.run_in_executor(
+                        None, 
+                        florence_view.generate_caption, 
+                        input_obj
+                    )
+                    
                     print("Caption generated")
                     
                     if caption_result:
