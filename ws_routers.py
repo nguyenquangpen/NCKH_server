@@ -17,6 +17,7 @@ model_loaded = False
 @app.websocket("/ws/agent")
 async def video_handler(websocket: WebSocket):
     await websocket.accept()
+    global model_loaded
     print("Client connected")
     try:
         while True:
@@ -26,7 +27,7 @@ async def video_handler(websocket: WebSocket):
                     if not model_loaded:
                         await asyncio.to_thread(florence_view._load_model)
                         model_loaded = True
-                        
+
                 print("Florence-2 model is ready")
                 await websocket.send_text("ready_florence")
                 continue
@@ -51,7 +52,7 @@ async def video_handler(websocket: WebSocket):
             
             try:
                 data = json.loads(msg)
-                if data.get("Status") == "run_florence":
+                if data.get("status") == "run_florence":
                     shot_id = data.get("shot_id")
                     image_b64 = data.get("image_b64")
                     print(f"Processing shot: {shot_id}")
@@ -73,7 +74,7 @@ async def video_handler(websocket: WebSocket):
                     else:
                         await websocket.send_json({"status": "error", "message": "Inference failed"})
 
-                elif data.get("Status") == "run_llama":
+                elif data.get("status") == "run_llama":
                     pass
             except Exception as e:
                 print(f"Error processing message: {str(e)}")
