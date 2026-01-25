@@ -39,23 +39,34 @@ class FlorenceView:
         self.model = None
         self.processor = None
         clear_vram()
+    
+    def _repair_base64(self, b64_string):
+        """Repair base64 string by adding missing padding if necessary."""
+        if "," in b64_string:
+            b64_string = b64_string.split(",")[1]
+        
+        missing_padding = len(b64_string) % 4
+        if missing_padding:
+            b64_string += '=' * (4 - missing_padding)
+        return b64_string
 
     def _decode_image(self, image_b64: str) -> Image.Image:
         try:
-            if "," in image_b64:
-                image_b64 = image_b64.split(",")[1]
-            img_data = base64.b64decode(image_b64)
-            return Image.open(BytesIO(img_data)).convert("RGB")
+            clean_b64 = self._repair_base64(image_b64)
+            img_data = base64.b64decode(clean_b64)
+            image = Image.open(BytesIO(img_data)).convert("RGB")
+            return image
         except Exception as e:
-            print(f"Error decoding base64: {e}")
+            print(f"CRITICAL ERROR: Failed to decode image: {e}")
             return None
-
+        
     def generate_caption(self, data: FlorenceInput):
         """
         handle inference for a list of FlorenceInput and return a list of FlorenceOutput
         """
         self._load_model()
         task_prompt = '<DETAILED_CAPTION>' 
+        caption_text = "ERROR_INFERENCE"
         try:
             print("Decoding image from base64...")
             image = self._decode_image(data.image_b64)
@@ -84,4 +95,5 @@ class FlorenceView:
 
         except Exception as e:
             print(f"Error during Florence inference: {str(e)}")
+            caption_text = f"Error: {str(e)}"
         return caption_text

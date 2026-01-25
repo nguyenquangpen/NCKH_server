@@ -27,9 +27,15 @@ async def video_handler(websocket: WebSocket):
                     if not model_loaded:
                         await asyncio.to_thread(florence_view._load_model)
                         model_loaded = True
-
                 print("Florence-2 model is ready")
                 await websocket.send_text("ready_florence")
+                continue
+
+            elif msg == "success_florence":
+                async with model_lock:
+                    if model_loaded:
+                        await asyncio.to_thread(florence_view.unload_model)
+                        model_loaded = False
                 continue
             
             elif msg == "init_llama":
@@ -38,11 +44,6 @@ async def video_handler(websocket: WebSocket):
                 #         await asyncio.to_thread(llama_view._load_model)
                 #         model_loaded = True
                 await websocket.send_text("ready_llama")
-                continue
-            
-            elif msg == "success_florence":
-                # setup clear vram here
-                florence_view.unload_model()
                 continue
             
             elif msg == "success_llama":
@@ -61,13 +62,15 @@ async def video_handler(websocket: WebSocket):
                         shot_id=shot_id,
                         image_b64=image_b64
                     )
+
                     print("Generating caption with Florence-2...")
-                    results = florence_view.generate_caption(input_obj)
+                    caption_result = florence_view.generate_caption(input_obj)
                     print("Caption generated")
-                    if results:
+                    
+                    if caption_result:
                         response = {
                             "shot_id": shot_id,
-                            "caption": results,
+                            "caption": caption_result,
                             "status": "completed"
                         }
                         await websocket.send_json(response)
