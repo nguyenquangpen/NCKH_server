@@ -7,7 +7,6 @@ from Llama_3.view import LlamaView
 from Florence.view import FlorenceView
 
 app = FastAPI()
-router = APIRouter()
 florence_view = FlorenceView()
 llama_view = LlamaView()
 
@@ -17,22 +16,28 @@ async def video_handler(websocket: WebSocket):
     print("Client connected")
     try:
         while True:
-            msg = await websocket.receive_json()
+            msg = await websocket.receive_text()
             if msg == "init_florence":
                 # setup florence model here
+                florence_view._load_model()
                 await websocket.send_text("ready_florence")
+                continue
             
             elif msg == "init_llama":
                 # setup llama model here
+                # llama_view._load_model()
                 await websocket.send_text("ready_llama")
+                continue
             
             elif msg == "success_florence":
                 # setup clear vram here
-                pass
+                florence_view.unload_model()
+                continue
             
             elif msg == "success_llama":
                 # setup clear vram here
-                pass
+                # llama_view.unload_model()
+                continue
             
             try:
                 data = json.loads(msg)

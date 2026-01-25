@@ -16,6 +16,9 @@ class FlorenceView:
         self.processor = None
     
     def _load_model(self):
+        if self.model is not None:
+            print("--- Florence-2 Model already loaded ---")
+            return
         print(f"--- Loading Florence-2 Model: {self.model_id} ---")
         self.model = AutoModelForCausalLM.from_pretrained(
             self.model_id,
@@ -26,7 +29,7 @@ class FlorenceView:
 
         self.processor = AutoProcessor.from_pretrained(self.model_id, trust_remote_code=True)
 
-    def _unload_model(self):
+    def unload_model(self):
         print("--- Unloading Florence-2 Model to free VRAM ---")
         if self.model is not None:
             del self.model
@@ -77,7 +80,4 @@ class FlorenceView:
 
         except Exception as e:
             print(f"Error during Florence inference: {str(e)}")
-        
-        finally:
-            self._unload_model()
         return results

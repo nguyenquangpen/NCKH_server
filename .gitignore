@@ -1,1 +1,3 @@
 database/
+__python_cache__/
+__pycache__/
