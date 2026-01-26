@@ -11,7 +11,7 @@ from utils.memory import clear_vram
 class FlorenceView:
     def __init__(self):
         self.model_id = 'microsoft/Florence-2-large'
-        self.device = "cuda:0" if torch.cuda.is_available() else "cpu"
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32
         self.model = None
         self.processor = None
@@ -25,7 +25,7 @@ class FlorenceView:
             self.model_id,
             torch_dtype=self.torch_dtype,
             trust_remote_code=True,
-            # attn_implementation="eager"
+            attn_implementation="eager"
         ).to(self.device).eval()
         self.processor = AutoProcessor.from_pretrained(self.model_id, trust_remote_code=True)
 
@@ -67,7 +67,7 @@ class FlorenceView:
         """
         self._load_model()
         task_prompt = '<DETAILED_CAPTION>' 
-        caption_text = "ERROR_INFERENCE"
+        
         try:
             print("Decoding image from base64...")
             image = self._decode_image(data.image_b64)
@@ -77,17 +77,21 @@ class FlorenceView:
 
             with torch.inference_mode():
                 inputs = self.processor(text=task_prompt, images=image, return_tensors="pt")
-                input_ids = inputs["input_ids"].to(self.device)
-                pixel_values = inputs["pixel_values"].to(self.device, self.torch_dtype)
+
+                inputs = {
+                    k: v.to(device=self.device, dtype=self.torch_dtype if v.dtype.is_floating_point else None)
+                    for k, v in inputs.items()
+                }
                 
                 print("Generating caption with Florence-2...")
                 generated_ids = self.model.generate(
-                    input_ids=input_ids,
-                    pixel_values=pixel_values,
+                    input_ids=inputs["input_ids"],
+                    pixel_values=inputs["pixel_values"],
                     max_new_tokens=1024,
                     early_stopping=False,
                     do_sample=False,
                     num_beams=3,
+                    use_cache=False,
                 )
         
                 print("Decoding generated text...")
@@ -99,7 +103,7 @@ class FlorenceView:
                     task=task_prompt,
                     image_size=(image.width, image.height)
                 )
-                return parsed_answer.get(task_prompt, "")
+                return parsed_answer.get(task_prompt, str(parsed_answer))
 
         except Exception as e:
             print(f"Error during Florence inference: {str(e)}")

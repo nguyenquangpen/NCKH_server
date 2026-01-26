@@ -19,14 +19,16 @@ model_loaded = False
 async def video_handler(websocket: WebSocket):
     await websocket.accept()
     global model_loaded
+    loop = asyncio.get_event_loop()
     print("Client connected")
+
     try:
         while True:
             msg = await websocket.receive_text()
             if msg == "init_florence":
                 async with model_lock:
                     if not model_loaded:
-                        await asyncio.to_thread(florence_view._load_model)
+                        await loop.run_in_executor(None, florence_view._load_model)
                         model_loaded = True
                 print("Florence-2 model is ready")
                 await websocket.send_text("ready_florence")
@@ -35,7 +37,7 @@ async def video_handler(websocket: WebSocket):
             elif msg == "success_florence":
                 async with model_lock:
                     if model_loaded:
-                        await asyncio.to_thread(florence_view.unload_model)
+                        await loop.run_in_executor(None, florence_view.unload_model)
                         model_loaded = False
                 continue
             
@@ -53,6 +55,7 @@ async def video_handler(websocket: WebSocket):
                 continue
             
             try:
+                print("run here")
                 data = json.loads(msg)
                 if data.get("status") == "run_florence":
                     shot_id = data.get("shot_id")
@@ -64,16 +67,14 @@ async def video_handler(websocket: WebSocket):
                         image_b64=image_b64
                     )
 
-                    loop = asyncio.get_running_loop()
                     print(f"🚀 Đang chạy Florence cho Shot {shot_id}...")
                     caption_result = await loop.run_in_executor(
                         None, 
                         florence_view.generate_caption, 
                         input_obj
                     )
-                    
+
                     print("Caption generated")
-                    
                     if caption_result:
                         response = {
                             "shot_id": shot_id,
