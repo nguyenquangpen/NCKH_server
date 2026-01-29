@@ -13,12 +13,10 @@ florence_view = FlorenceView()
 llama_view = LlamaView()
 
 model_lock = asyncio.Lock()
-model_loaded = False
 
 @app.websocket("/ws/agent")
 async def video_handler(websocket: WebSocket):
     await websocket.accept()
-    global model_loaded
     loop = asyncio.get_event_loop()
     print("Client connected")
 
@@ -27,31 +25,31 @@ async def video_handler(websocket: WebSocket):
             msg = await websocket.receive_text()
             if msg == "init_florence":
                 async with model_lock:
-                    if not model_loaded:
-                        await loop.run_in_executor(None, florence_view._load_model)
-                        model_loaded = True
+                    await asyncio.to_thread(None, florence_view._load_model)
                 print("Florence-2 model is ready")
                 await websocket.send_text("ready_florence")
                 continue
 
             elif msg == "success_florence":
                 async with model_lock:
-                    if model_loaded:
-                        await loop.run_in_executor(None, florence_view.unload_model)
-                        model_loaded = False
+                    print("🧹 Unloading Florence-2 to free VRAM...")
+                    await asyncio.to_thread(None, florence_view.unload_model)
+                # cần chỉnh bên client thằng này
+                await websocket.send_text("unloaded_florence")
                 continue
             
             elif msg == "init_llama":
-                # async with model_lock:
-                #     if not model_loaded:
-                #         await asyncio.to_thread(llama_view._load_model)
-                #         model_loaded = True
+                async with model_lock:
+                    await asyncio.to_thread(llama_view._load_model)
                 await websocket.send_text("ready_llama")
                 continue
             
             elif msg == "success_llama":
-                # setup clear vram here
-                # llama_view.unload_model()
+                async with model_lock:
+                    print("🧹 Unloading Llama-3 to free VRAM...")
+                    await asyncio.to_thread(llama_view.unload_model)
+                # cần chỉnh bên client thằng này
+                await websocket.send_text("unloaded_llama")
                 continue
             
             try:
@@ -86,12 +84,32 @@ async def video_handler(websocket: WebSocket):
                         await websocket.send_json({"status": "error", "message": "Inference failed"})
 
                 elif data.get("status") == "run_llama":
-                    pass
+                    prompt_json_path = data.get("prompt_json_path")
+                    base_llama_dir = "llama_emb/tvsum_sum/" 
+                    
+                    print(f"🧠 Llama-3 is processing: {prompt_json_path}")
+                    
+                    await asyncio.to_thread(
+                        llama_view.process_metadata_to_h5, 
+                        prompt_json_path, 
+                        base_llama_dir
+                    )
+
+                    await websocket.send_json({
+                        "status": "completed_llama",
+                        "message": "Features extracted and saved successfully",
+                    })
+                
             except Exception as e:
                 print(f"Error processing message: {str(e)}")
                 continue
     except Exception as e:
         print(f"Connection closed: {str(e)}")
+    finally:
+        async with model_lock:
+            await asyncio.to_thread(None, florence_view.unload_model)
+            await asyncio.to_thread(None, llama_view.unload_model)
+        print("Models unloaded, connection closed.")
     
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
