@@ -25,7 +25,7 @@ async def video_handler(websocket: WebSocket):
             msg = await websocket.receive_text()
             if msg == "init_florence":
                 async with model_lock:
-                    await asyncio.to_thread(None, florence_view._load_model)
+                    await asyncio.to_thread(florence_view._load_model)
                 print("Florence-2 model is ready")
                 await websocket.send_text("ready_florence")
                 continue
@@ -33,7 +33,7 @@ async def video_handler(websocket: WebSocket):
             elif msg == "success_florence":
                 async with model_lock:
                     print("🧹 Unloading Florence-2 to free VRAM...")
-                    await asyncio.to_thread(None, florence_view.unload_model)
+                    await asyncio.to_thread(florence_view.unload_model)
                 # cần chỉnh bên client thằng này
                 await websocket.send_text("unloaded_florence")
                 continue
@@ -107,8 +107,8 @@ async def video_handler(websocket: WebSocket):
         print(f"Connection closed: {str(e)}")
     finally:
         async with model_lock:
-            await asyncio.to_thread(None, florence_view.unload_model)
-            await asyncio.to_thread(None, llama_view.unload_model)
+            await asyncio.to_thread(florence_view.unload_model)
+            await asyncio.to_thread(llama_view.unload_model)
         print("Models unloaded, connection closed.")
     
 if __name__ == "__main__":
