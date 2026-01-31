@@ -35,7 +35,7 @@ async def video_handler(websocket: WebSocket):
                     print("🧹 Unloading Florence-2 to free VRAM...")
                     await asyncio.to_thread(florence_view.unload_model)
                 # cần chỉnh bên client thằng này
-                await websocket.send_text("unloaded_florence")
+                # await websocket.send_text("unloaded_florence")
                 continue
             
             elif msg == "init_llama":
@@ -84,21 +84,19 @@ async def video_handler(websocket: WebSocket):
                         await websocket.send_json({"status": "error", "message": "Inference failed"})
 
                 elif data.get("status") == "run_llama":
-                    prompt_json_path = data.get("prompt_json_path")
-                    base_llama_dir = "llama_emb/tvsum_sum/" 
-                    
-                    print(f"🧠 Llama-3 is processing: {prompt_json_path}")
+                    segment_data = data.get("segment_data")
+                    print(f"🧠 Llama-3 is processing")
                     try:
                         # tool chua setup nhan error or failure
-                        result = await asyncio.to_thread(
-                            llama_view.process_metadata_to_h5, 
-                            prompt_json_path, 
-                            base_llama_dir
+                        x1, x2 = await asyncio.to_thread(
+                            llama_view.get_segment_embeddings,
+                            segment_data,
                         )
-                        if result is True:
+                        if x1 is not None and x2 is not None:
                             await websocket.send_json({
                                 "status": "completed_llama",
-                                "message": "Features extracted and saved successfully",
+                                "x1": x1.tolist(),
+                                "x2": x2.tolist(),
                             })
                         else:
                             await websocket.send_json({
@@ -111,14 +109,16 @@ async def video_handler(websocket: WebSocket):
                             "message": f"Llama crashed: {str(e)}",
                         })
             except Exception as e:
-                print(f"Error processing message: {str(e)}")
-                continue
+                await websocket.send_json({
+                    "status": "server_error",
+                    "message": str(e)
+                })
     except Exception as e:
         print(f"Connection closed: {str(e)}")
     finally:
-        async with model_lock:
-            await asyncio.to_thread(florence_view.unload_model)
-            await asyncio.to_thread(llama_view.unload_model)
+        # async with model_lock:
+        #     await asyncio.to_thread(florence_view.unload_model)
+        #     await asyncio.to_thread(llama_view.unload_model)
         print("Models unloaded, connection closed.")
     
 if __name__ == "__main__":
