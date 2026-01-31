@@ -23,8 +23,16 @@ class LlamaView:
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_id)
         self.user_tag = "<|eot_id|>"
 
+        bnb_config = BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_quant_type="nf4",        
+            bnb_4bit_compute_dtype=torch.bfloat16,
+            bnb_4bit_use_double_quant=True 
+        )
+
         self.model = AutoModelForCausalLM.from_pretrained(
             self.model_id,
+            quantization_config=bnb_config,
             torch_dtype=self.torch_dtype,
             device_map="auto",
             output_hidden_states=True,
