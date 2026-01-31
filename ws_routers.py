@@ -88,18 +88,28 @@ async def video_handler(websocket: WebSocket):
                     base_llama_dir = "llama_emb/tvsum_sum/" 
                     
                     print(f"🧠 Llama-3 is processing: {prompt_json_path}")
-                    
-                    await asyncio.to_thread(
-                        llama_view.process_metadata_to_h5, 
-                        prompt_json_path, 
-                        base_llama_dir
-                    )
-
-                    await websocket.send_json({
-                        "status": "completed_llama",
-                        "message": "Features extracted and saved successfully",
-                    })
-                
+                    try:
+                        # tool chua setup nhan error or failure
+                        result = await asyncio.to_thread(
+                            llama_view.process_metadata_to_h5, 
+                            prompt_json_path, 
+                            base_llama_dir
+                        )
+                        if result is True:
+                            await websocket.send_json({
+                                "status": "completed_llama",
+                                "message": "Features extracted and saved successfully",
+                            })
+                        else:
+                            await websocket.send_json({
+                                "status": "failed_llama",
+                                "message": "Llama-3 processing failed",
+                            })
+                    except Exception as e:
+                        await websocket.send_json({
+                            "status": "error_llama",
+                            "message": f"Llama crashed: {str(e)}",
+                        })
             except Exception as e:
                 print(f"Error processing message: {str(e)}")
                 continue

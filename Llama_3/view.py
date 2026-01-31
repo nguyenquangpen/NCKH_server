@@ -77,39 +77,50 @@ class LlamaView:
 
     def process_metadata_to_h5(self, prompt_json_path, base_output_dir):
         """Process metadata JSON file and store embeddings in H5 file."""
+        try:
+            with open(prompt_json_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
 
-        with open(prompt_json_path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-        
-        video_id = data['video_id']
-        prompts = data['prompts']
+            video_id = str(data.get('video_id', 'unknown')).replace('/', '_')
+            prompts = data['prompts']
 
-        user_dir = os.path.join(base_output_dir, "user_prompt")
-        gen_dir = os.path.join(base_output_dir, "gen")
-        os.makedirs(user_dir, exist_ok=True)
-        os.makedirs(gen_dir, exist_ok=True)
+            user_dir = os.path.join(base_output_dir, "user_prompt")
+            gen_dir = os.path.join(base_output_dir, "gen")
+            os.makedirs(user_dir, exist_ok=True)
+            os.makedirs(gen_dir, exist_ok=True)
 
-        user_h5_path = os.path.join(user_dir, "user_prompt_pool.h5")
-        gen_h5_path = os.path.join(gen_dir, "gen_pool.h5")
+            user_h5_path = os.path.join(user_dir, "user_prompt_pool.h5")
+            gen_h5_path = os.path.join(gen_dir, "gen_pool.h5")
 
-        x1_list, x2_list = [], []
-        print(f"🧪 Processing {video_id}...")
+            x1_list, x2_list = [], []
+            print(f"🧪 Processing {video_id}...")
 
-        for p in tqdm(prompts):
-            x1, x2 = self.extract_dual_embeddings(p['prompt'])
-            x1_list.append(x1)
-            x2_list.append(x2)
-            
-        x1_array = np.array(x1_list)[:, np.newaxis, :]
-        x2_array = np.array(x2_list)[:, np.newaxis, :]
+            for p in tqdm(prompts):
+                prompt_text = str(p.get('prompt', ''))
+                x1, x2 = self.extract_dual_embeddings(prompt_text)
+                x1_list.append(x1)
+                x2_list.append(x2)
+                
+            x1_array = np.array(x1_list)[:, np.newaxis, :]
+            x2_array = np.array(x2_list)[:, np.newaxis, :]
 
-        for path, arr in [(user_h5_path, x1_array), (gen_h5_path, x2_array)]:
-            with h5py.File(path, 'a') as f:
-                if video_id in f:
-                    del f[video_id]
-                f.create_dataset(video_id, data=arr.astype(np.float16))
+            print("Type x1_array:", type(x1_array))
+            print("Type x2_array:", type(x2_array))
+            print("Dtype x1:", x1_array.dtype)
+            print("Shape x1:", x1_array.shape)
 
-        print(f"✅ Extracted features for {video_id} to {user_dir} and {gen_dir}")
+
+            for path, arr in [(user_h5_path, x1_array), (gen_h5_path, x2_array)]:
+                with h5py.File(path, 'a') as f:
+                    if video_id in f:
+                        del f[video_id]
+                    f.create_dataset(video_id, data=np.asanyarray(arr).astype(np.float16))
+
+            print(f"✅ Extracted features for {video_id} to {user_dir} and {gen_dir}")
+            return True
+        except Exception as e:
+            print(f"❌ Failed to process {prompt_json_path}: {str(e)}")
+            return False
 
 # if __name__ == "__main__":
 #     extractor = LlamaView()
