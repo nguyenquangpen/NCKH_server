@@ -53,7 +53,6 @@ async def video_handler(websocket: WebSocket):
                 continue
             
             try:
-                print("run here")
                 data = json.loads(msg)
                 if data.get("status") == "run_florence":
                     shot_id = data.get("shot_id")
