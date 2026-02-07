@@ -35,7 +35,7 @@ async def video_handler(websocket: WebSocket):
                     print("🧹 Unloading Florence-2 to free VRAM...")
                     await asyncio.to_thread(florence_view.unload_model)
                 # cần chỉnh bên client thằng này
-                # await websocket.send_text("unloaded_florence")
+                await websocket.send_json({"status": "unloaded_florence"})
                 continue
             
             elif msg == "init_llama":
@@ -49,7 +49,7 @@ async def video_handler(websocket: WebSocket):
                     print("🧹 Unloading Llama-3 to free VRAM...")
                     await asyncio.to_thread(llama_view.unload_model)
                 # cần chỉnh bên client thằng này
-                await websocket.send_text("unloaded_llama")
+                await websocket.send_json({"status": "unloaded_llama"}) 
                 continue
             
             try:

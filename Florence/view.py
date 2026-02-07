@@ -66,7 +66,7 @@ class FlorenceView:
         handle inference for a list of FlorenceInput and return a list of FlorenceOutput
         """
         self._load_model()
-        task_prompt = '<DETAILED_CAPTION>' 
+        task_prompt = '<MORE_DETAILED_CAPTION>' 
         
         try:
             print("Decoding image from base64...")

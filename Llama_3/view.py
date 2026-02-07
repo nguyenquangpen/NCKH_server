@@ -80,20 +80,11 @@ class LlamaView:
         """Generate embeddings for the given text input with targeted pooling."""
         inputs = self.tokenizer(full_prompt, return_tensors="pt").to(self.device)
         outputs = self.model(**inputs)
-
-        # 1. Sử dụng Layer -2 hoặc -4 để có tính phân hóa (Discriminative Power) tốt hơn lớp cuối
-        # Lớp cuối cùng của Instruct model thường bị "bó" lại để chuẩn bị ra token Score:
         selected_layer = outputs.hidden_states[-2].to(torch.float32) 
-
-        # 2. Chỉ Mean Pooling phần đuôi của Prompt (nơi chứa thông tin Shot thay đổi)
-        # Thông thường phần Video Data và mô tả nằm ở 1/3 cuối của Prompt
         seq_len = selected_layer.shape[1]
-        dynamic_window = min(seq_len, 300) # Lấy tối đa 300 tokens cuối cùng
+        dynamic_window = min(seq_len, 300)
         
-        # Pool duy nhất phần dynamic để làm nổi bật sự khác biệt giữa các shot
         x1 = torch.mean(selected_layer[:, -dynamic_window:, :], dim=1).squeeze().to(torch.float32).cpu().numpy()
-
-        # x2 vẫn lấy token cuối cùng làm đặc trưng cho "sự hội tụ" của prompt
         x2 = selected_layer[0, -1, :].to(torch.float32).cpu().numpy()
 
         return x1, x2
