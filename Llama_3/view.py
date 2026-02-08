@@ -78,7 +78,7 @@ class LlamaView:
     @torch.inference_mode()
     def extract_dual_embeddings(self, full_prompt):
         """Generate embeddings for the given text input with targeted pooling."""
-        inputs = self.tokenizer(full_prompt, return_tensors="pt").to(self.device)
+        inputs = self.tokenizer(full_prompt, return_tensors="pt")
         outputs = self.model(**inputs)
         selected_layer = outputs.hidden_states[-2].to(torch.float32) 
         seq_len = selected_layer.shape[1]
