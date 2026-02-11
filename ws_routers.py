@@ -4,7 +4,7 @@ import uvicorn
 import base64
 import json
 import asyncio
-from Llama_3.view import LlamaView
+from Llama.view import LlamaView
 from Florence.view import FlorenceView
 from Florence.model import FlorenceInput, FlorenceOutput
 
@@ -41,9 +41,10 @@ async def video_handler(websocket: WebSocket):
             elif msg == "init_llama":
                 async with model_lock:
                     await asyncio.to_thread(llama_view._load_model)
+                    await asyncio.to_thread(llama_view.set_global_prefix)
                 await websocket.send_text("ready_llama")
                 continue
-            
+
             elif msg == "success_llama":
                 async with model_lock:
                     print("🧹 Unloading Llama-3 to free VRAM...")
