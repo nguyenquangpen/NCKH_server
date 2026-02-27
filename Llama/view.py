@@ -95,7 +95,8 @@ class LlamaView:
             output_hidden_states=True
         )
 
-        hidden_layer = outputs.hidden_states[-2] 
+        hidden_layer = outputs.hidden_states[-2]
+        print(f"DEBUG: Hidden layer shape: {hidden_layer.shape}") 
         x1 = torch.mean(hidden_layer[:, -min(hidden_layer.shape[1], 300):, :], dim=1).squeeze().cpu().to(torch.float32).numpy()
         x2 = hidden_layer[0, -1, :].cpu().to(torch.float32).numpy()
 
