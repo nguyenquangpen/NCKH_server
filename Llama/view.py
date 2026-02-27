@@ -17,7 +17,7 @@ class LlamaView:
         self.tokenizer = None
         self.torch_dtype = torch.float16
         self.prefix_cache = None
-        self.prefix_idx = None
+        # self.prefix_idx = None
 
     def _load_model(self):
         if self.model is not None:
@@ -84,23 +84,36 @@ class LlamaView:
             add_special_tokens=False 
         ).to(self.device)
 
+        seq_len_var = inputs_variable.input_ids.shape[1]
+        position_ids = torch.arange(
+            self.prefix_idx, self.prefix_idx + seq_len_var, dtype=torch.long, device=self.device
+        ).unsqueeze(0)
+
         prefix_mask = torch.ones((1, self.prefix_idx), dtype=torch.long).to(self.device)
         full_mask = torch.cat([prefix_mask, inputs_variable.attention_mask], dim=1)
 
         outputs = self.model(
             input_ids=inputs_variable.input_ids,
             attention_mask=full_mask,
+            position_ids=position_ids,
             past_key_values=self.prefix_cache,
             use_cache=True,
             output_hidden_states=True
         )
 
-        hidden = outputs.hidden_states[-2].to(torch.float32) 
-        seq_len = hidden.shape[1]
+        hidden = outputs.hidden_states[-2][0].detach().cpu().to(torch.float32) 
+        del outputs
+
+        # hidden = outputs.hidden_states[-2].to(torch.float32) 
+        seq_len = hidden.shape[0] 
         dynamic_window = min(seq_len, 300)
 
-        x1 = torch.mean(hidden[:, -dynamic_window:, :], dim=1).squeeze().cpu().numpy()
-        x2 = hidden[0, -1, :].cpu().numpy()
+        x1 = torch.mean(hidden[-dynamic_window:, :], dim=0).numpy()
+        x2 = hidden[-1, :].numpy()
+
+        # x1 = torch.mean(hidden[:, -dynamic_window:, :], dim=1).squeeze().cpu().numpy()
+        # x2 = hidden[0, -1, :].cpu().numpy()
+        del hidden, inputs_variable, full_mask
         return x1, x2
 
     def get_segment_embeddings(self, dynamic_data):
@@ -141,7 +154,8 @@ class LlamaView:
             pad_token_id=self.tokenizer.eos_token_id
         )
 
-        new_tokens = output_ids[0]
+        new_tokens = output_ids[0].cpu()
+        
         response = self.tokenizer.decode(new_tokens, skip_special_tokens=True)
         
         return response

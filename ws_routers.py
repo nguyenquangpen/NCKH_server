@@ -1,6 +1,7 @@
 import os
 from fastapi import FastAPI, WebSocket, APIRouter
 import uvicorn
+import torch
 import base64
 import json
 import asyncio
