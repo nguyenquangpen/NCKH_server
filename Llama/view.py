@@ -41,12 +41,12 @@ class LlamaView:
             device_map="auto",
             output_hidden_states=True,
             trust_remote_code=True,
-            use_cache=True,
+            use_cache=False,
         )
         self.model.eval()
 
     def unload_model(self):
-        print("--- Unloading Llama-3 Model to free VRAM ---")
+        print("--- Unloading Llama-2 Model to free VRAM ---")
         if self.model is not None:
             del self.model
         if self.tokenizer is not None:
